@@ -144,7 +144,11 @@ def fetch_data(ticker: str, period: str = "2y", interval: str = "1d") -> pd.Data
     except ImportError:
         raise SystemExit("Run: pip install yfinance pandas numpy --break-system-packages")
     df = yf.download(ticker, period=period, interval=interval, progress=False, auto_adjust=True)
-    return df.dropna() if not df.empty else df
+   if df.empty:
+       return df
+   if isinstance(df.columns, pd.MultiIndex):
+       df.columns = df.columns.get_level_values(0)
+   return df.dropna()
 
 
 def compute_indicators(df: pd.DataFrame) -> pd.DataFrame:
