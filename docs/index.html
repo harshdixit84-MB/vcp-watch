@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VCP Watch — No scans yet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="static/style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <svg class="brand-mark" viewBox="0 0 40 24" width="34" height="20" aria-hidden="true">
+      <polyline points="1,4 8,18 14,8 20,15 26,6 32,12 39,3" fill="none" stroke="var(--amber)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <span class="brand-name">VCP&nbsp;Watch</span>
+  </div>
+  <div class="topbar-meta">
+    
+  </div>
+</header>
+
+
+
+<main>
+  
+    <div class="empty-state">
+      <svg viewBox="0 0 40 24" width="48" height="28" aria-hidden="true">
+        <polyline points="1,4 8,18 14,8 20,15 26,6 32,12 39,3" fill="none" stroke="var(--text-muted)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <h2>No candidates in this scan.</h2>
+      <p>Nothing formed a valid contraction on the most recent run. Run <code>python3 run_daily.py</code> to scan again, or check another date above.</p>
+    </div>
+  
+</main>
+
+<footer>
+  <p>Heuristic screen, not advice. Verify every setup on the actual chart before acting. Data via yfinance, delayed.</p>
+</footer>
+
+</body>
+</html>
