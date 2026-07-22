@@ -1,0 +1,43 @@
+name: Daily VCP Scan
+
+# Runs the screener every weekday after NSE close, rebuilds the static
+# site, and commits both the updated database and the published pages.
+# 100% free on GitHub Actions (public repos get unlimited minutes).
+
+on:
+  schedule:
+    # 11:00 UTC = 4:30 PM IST, Monday-Friday
+    - cron: '0 11 * * 1-5'
+  workflow_dispatch: {}   # lets you trigger it manually from the Actions tab
+
+permissions:
+  contents: write   # needed so the workflow can commit results back
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run daily screener and build site
+        env:
+          VCP_TELEGRAM_BOT_TOKEN: ${{ secrets.VCP_TELEGRAM_BOT_TOKEN }}
+          VCP_TELEGRAM_CHAT_ID: ${{ secrets.VCP_TELEGRAM_CHAT_ID }}
+        run: python3 run_daily.py
+
+      - name: Commit updated data and site
+        run: |
+          git config user.name "vcp-bot"
+          git config user.email "vcp-bot@users.noreply.github.com"
+          git add data/vcp.db docs/
+          git diff --staged --quiet || git commit -m "Daily VCP scan $(date +'%Y-%m-%d')"
+          git push
