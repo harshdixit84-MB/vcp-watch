@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SIEMENS — VCP Watch</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../static/style.css">
+<script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <a href="../index.html" class="back-link">←</a>
+    <span class="brand-name">SIEMENS</span>
+  </div>
+  <div class="topbar-meta">
+    <a href="https://www.tradingview.com/chart/?symbol=NSE:SIEMENS" target="_blank" rel="noopener" class="tv-link">Open in TradingView ↗</a>
+  </div>
+</header>
+
+<main>
+  
+  <h2 class="section-title">Chart — detected base zone</h2>
+  <div id="chart-container" class="chart-container"></div>
+  <p class="chart-legend">
+    <span class="legend-dot legend-amber"></span> Base high / low (dashed lines)
+    &nbsp;&nbsp;<span class="legend-dot legend-arrow">▲</span> Base start
+  </p>
+  <script>
+    fetch("../chart-data/SIEMENS.NS.json")
+      .then(r => r.json())
+      .then(data => {
+        const container = document.getElementById('chart-container');
+        const chart = LightweightCharts.createChart(container, {
+          height: 420,
+          layout: { background: { color: '#10151F' }, textColor: '#7C8798' },
+          grid: {
+            vertLines: { color: '#1E2530' },
+            horzLines: { color: '#1E2530' },
+          },
+          rightPriceScale: { borderColor: '#1E2530' },
+          timeScale: { borderColor: '#1E2530' },
+        });
+        const candleSeries = chart.addCandlestickSeries({
+          upColor: '#3FB950', downColor: '#F0605A', borderVisible: false,
+          wickUpColor: '#3FB950', wickDownColor: '#F0605A',
+        });
+        candleSeries.setData(data.candles);
+
+        candleSeries.createPriceLine({
+          price: data.base.high, color: '#D4A72C', lineWidth: 1,
+          lineStyle: LightweightCharts.LineStyle.Dashed, title: 'Base High',
+        });
+        candleSeries.createPriceLine({
+          price: data.base.low, color: '#D4A72C', lineWidth: 1,
+          lineStyle: LightweightCharts.LineStyle.Dashed, title: 'Base Low',
+        });
+        candleSeries.setMarkers([{
+          time: data.base.start_date, position: 'belowBar',
+          color: '#D4A72C', shape: 'arrowUp',
+          text: `Base start (${data.base.days}d, ${data.base.range_pct}% range)`,
+        }]);
+
+        chart.timeScale().fitContent();
+      })
+      .catch(err => {
+        document.getElementById('chart-container').innerHTML =
+          '<p class="muted">Chart data unavailable for this ticker.</p>';
+      });
+  </script>
+  
+
+  <h2 class="section-title" style="margin-top: 32px;">Appearance history</h2>
+  
+  <table class="board">
+    <thead>
+      <tr>
+        <th>Date</th><th class="col-num">Close</th><th class="col-num">Off 52w Low</th>
+        <th class="col-num">Base (days)</th><th class="col-num">Base Range</th><th class="col-num">Score</th>
+      </tr>
+    </thead>
+    <tbody>
+      
+      <tr>
+        <td class="mono">2026-07-23</td>
+        <td class="col-num mono">₹3681.90</td>
+        <td class="col-num mono gain">+30.3%</td>
+        <td class="col-num mono">38d</td>
+        <td class="col-num mono">13.5%</td>
+        <td class="col-num mono score">6.3</td>
+      </tr>
+      
+    </tbody>
+  </table>
+  
+</main>
+
+</body>
+</html>
