@@ -69,6 +69,7 @@
         </td>
         <td class="col-ticker">
           <a href="{{ r.ticker_url }}">{{ r.ticker.replace('.NS','') }}</a>
+          <a href="{{ r.tradingview_url }}" target="_blank" rel="noopener" class="tv-link-small" title="Open in TradingView">↗</a>
         </td>
         <td class="col-num mono">₹{{ '%.2f'|format(r.close) }}</td>
         <td class="col-num mono gain">+{{ r.pct_above_52w_low }}%</td>
