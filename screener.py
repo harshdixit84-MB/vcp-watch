@@ -21,12 +21,23 @@ DB_PATH = BASE_DIR / "data" / "vcp.db"
 
 # ----------------------------- CONFIG ---------------------------------
 MIN_PCT_ABOVE_52W_LOW = 30.0
-MAX_LAST_PULLBACK_PCT = 20.0
-LOOKBACK_DAYS = 130
-SWING_WINDOW = 5
 NEAR_BREAKOUT_PCT = 5.0
 VOL_WINDOW = 15
 MAX_EXTENSION_ABOVE_SMA50_PCT = 60.0
+
+# Minimum length of a genuine consolidation/base, in trading days.
+# ~10 trading days = 2 weeks, ~15 = 3 weeks - a real base needs to hold
+# this long, not just a random 2-3 day dip.
+MIN_BASE_DAYS = 10
+
+# How tight the base must be: (highest high - lowest low) / lowest low
+# over the base window, as a percentage. Minervini-style VCP bases
+# are typically well under 20%; we use 15% as the default ceiling.
+MAX_BASE_RANGE_PCT = 15.0
+
+# Don't search back more than this many days when looking for the base
+# (a base older than ~3-4 months isn't "the current" setup anymore).
+BASE_LOOKBACK_CAP = 70
 
 # Fallback sample universe. In practice, load a real list via
 # universe.load_universe_from_csv() - see universe.py
@@ -59,6 +70,12 @@ def init_db():
             UNIQUE(scan_date, ticker)
         )
     """)
+    # Migration: base_days was added later - add it to any DB created
+    # before this change (e.g. one already committed to GitHub).
+    try:
+        conn.execute("ALTER TABLE scans ADD COLUMN base_days INTEGER")
+    except sqlite3.OperationalError:
+        pass  # column already exists
     conn.commit()
     conn.close()
 
@@ -72,14 +89,14 @@ def save_results(df: pd.DataFrame, scan_date: str):
             INSERT OR REPLACE INTO scans
             (scan_date, ticker, close, pct_above_52w_low, last_pullback_pct,
              volume_contracting, near_recent_high, extended_avoid_entry,
-             sma10, sma20, sma50, sma200, score, details)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+             sma10, sma20, sma50, sma200, score, details, base_days)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """, (
             scan_date, row["Ticker"], row["Close"], row["PctAbove52WLow"],
             row["LastPullbackPct"], int(row["VolumeContracting"]),
             int(row["NearRecentHigh"]), int(row["Extended_AvoidNewEntry"]),
             row["SMA10"], row["SMA20"], row["SMA50"], row["SMA200"],
-            row["Score"], row["Details"],
+            row["Score"], row["Details"], row.get("BaseDays"),
         ))
     conn.commit()
     conn.close()
@@ -146,9 +163,13 @@ def fetch_data(ticker: str, period: str = "2y", interval: str = "1d") -> pd.Data
     df = yf.download(ticker, period=period, interval=interval, progress=False, auto_adjust=True)
     if df.empty:
         return df
+    # Newer yfinance versions return MultiIndex columns like
+    # (Close, RELIANCE.NS) even for a single-ticker download - flatten
+    # them back to plain 'Close', 'Open', etc. so scalar access works.
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = df.columns.get_level_values(0)
     return df.dropna()
+
 
 def compute_indicators(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
@@ -161,58 +182,69 @@ def compute_indicators(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def find_swings(series: pd.Series, window: int = SWING_WINDOW):
-    highs, lows = [], []
-    vals = series.values
-    n = len(vals)
-    for i in range(window, n - window):
-        seg = vals[i - window:i + window + 1]
-        if vals[i] == seg.max() and vals[i] != vals[i - 1]:
-            highs.append(i)
-        if vals[i] == seg.min() and vals[i] != vals[i - 1]:
-            lows.append(i)
-    return highs, lows
+def find_consolidation(df: pd.DataFrame):
+    """
+    Looks backward from the most recent trading day to find the longest
+    genuine consolidation: a stretch of at least MIN_BASE_DAYS where
+    price stayed within a tight range (<= MAX_BASE_RANGE_PCT).
 
+    This directly implements "consolidation first for 2-3 weeks, THEN
+    breakout" - rather than counting swing highs/lows, which produces
+    false positives on choppy, wide-swinging stocks.
 
-def analyze_contraction(df: pd.DataFrame):
-    recent = df.tail(LOOKBACK_DAYS)
-    if len(recent) < 40:
-        return False, None, "not enough data"
+    Returns a dict with base_days, range_pct, base_high, base_low if a
+    valid base is found, otherwise None.
+    """
+    if len(df) < MIN_BASE_DAYS:
+        return None
 
-    highs_idx, lows_idx = find_swings(recent["Close"], window=SWING_WINDOW)
-    points = sorted([(i, "H") for i in highs_idx] + [(i, "L") for i in lows_idx])
-    if len(points) < 3:
-        return False, None, "not enough swing points found"
+    highs = df["High"]
+    lows = df["Low"]
+    max_lookback = min(len(df), BASE_LOOKBACK_CAP)
 
-    pullbacks = []
-    for j in range(len(points) - 1):
-        idx1, typ1 = points[j]
-        idx2, typ2 = points[j + 1]
-        if typ1 == "H" and typ2 == "L":
-            high_price = recent["Close"].iloc[idx1]
-            low_price = recent["Close"].iloc[idx2]
-            pullbacks.append(round((high_price - low_price) / high_price * 100, 2))
-
-    if len(pullbacks) < 2:
-        return False, None, "fewer than 2 pullbacks identified"
-
-    last_pullback = pullbacks[-1]
-    contracting = True
-    for k in range(1, len(pullbacks)):
-        if pullbacks[k] > pullbacks[k - 1] * 1.15:
-            contracting = False
+    best = None
+    for window in range(MIN_BASE_DAYS, max_lookback + 1):
+        seg_high = float(highs.iloc[-window:].max())
+        seg_low = float(lows.iloc[-window:].min())
+        range_pct = (seg_high - seg_low) / seg_low * 100
+        if range_pct <= MAX_BASE_RANGE_PCT:
+            best = {
+                "base_days": window, "range_pct": round(range_pct, 2),
+                "base_high": seg_high, "base_low": seg_low,
+            }
+        else:
+            # Range only grows as the window widens, so once it blows
+            # past the ceiling, further widening won't help - stop here.
             break
 
-    is_contracting = contracting and last_pullback <= MAX_LAST_PULLBACK_PCT
-    return is_contracting, last_pullback, f"pullback sequence: {pullbacks}"
+    return best
 
 
-def check_volume_contraction(df: pd.DataFrame) -> bool:
-    if len(df) < VOL_WINDOW * 2:
+def check_breakout(df: pd.DataFrame, base: dict):
+    """
+    Given a confirmed base (from find_consolidation), checks whether
+    price is at or near breaking out above the base's high.
+    Returns (is_near_or_at_breakout: bool, pct_from_base_high: float)
+    """
+    close = float(df["Close"].iloc[-1])
+    base_high = base["base_high"]
+    pct_from_high = (base_high - close) / base_high * 100  # negative if already broken out
+    is_near_or_at = pct_from_high <= NEAR_BREAKOUT_PCT
+    return is_near_or_at, round(pct_from_high, 2)
+
+
+def check_volume_contraction(df: pd.DataFrame, base_days: int = None) -> bool:
+    """
+    Compares average volume during the base window against the period
+    right before it - true contraction means volume dried up DURING
+    the base, which is what actually confirms supply is drying up.
+    """
+    window = base_days if base_days else VOL_WINDOW
+    if len(df) < window * 2:
         return False
-    recent_vol = df["Volume"].tail(VOL_WINDOW).mean()
-    prior_vol = df["Volume"].tail(VOL_WINDOW * 2).head(VOL_WINDOW).mean()
-    return recent_vol < prior_vol
+    base_vol = df["Volume"].tail(window).mean()
+    prior_vol = df["Volume"].tail(window * 2).head(window).mean()
+    return base_vol < prior_vol
 
 
 def screen_stock(ticker: str):
@@ -238,20 +270,27 @@ def screen_stock(ticker: str):
         if pct_above_low < MIN_PCT_ABOVE_52W_LOW:
             return None
 
-        is_contracting, last_pullback, details = analyze_contraction(df)
-        if not is_contracting:
+        base = find_consolidation(df)
+        if not base:
             return None
 
-        vol_contracting = check_volume_contraction(df)
+        is_near_breakout, pct_from_high = check_breakout(df, base)
+        if not is_near_breakout:
+            return None
+
+        vol_contracting = check_volume_contraction(df, base_days=base["base_days"])
         extension_above_sma50 = (close - sma50) / sma50 * 100
         extended = extension_above_sma50 > MAX_EXTENSION_ABOVE_SMA50_PCT
-        recent_high_20d = float(df["Close"].tail(20).max())
-        near_recent_high = (recent_high_20d - close) / recent_high_20d * 100 <= NEAR_BREAKOUT_PCT
+        near_recent_high = pct_from_high <= NEAR_BREAKOUT_PCT
+
+        details = (f"base: {base['base_days']} trading days, "
+                   f"range {base['range_pct']}%, {pct_from_high}% from base high")
 
         return {
             "Ticker": ticker, "Close": round(close, 2),
             "PctAbove52WLow": round(pct_above_low, 1),
-            "LastPullbackPct": last_pullback,
+            "BaseDays": base["base_days"],
+            "LastPullbackPct": base["range_pct"],
             "VolumeContracting": vol_contracting,
             "NearRecentHigh": near_recent_high,
             "Extended_AvoidNewEntry": extended,
