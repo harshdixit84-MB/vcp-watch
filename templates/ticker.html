@@ -25,7 +25,7 @@
     <thead>
       <tr>
         <th>Date</th><th class="col-num">Close</th><th class="col-num">Off 52w Low</th>
-        <th class="col-num">Last Pullback</th><th class="col-num">Score</th>
+        <th class="col-num">Base (days)</th><th class="col-num">Base Range</th><th class="col-num">Score</th>
       </tr>
     </thead>
     <tbody>
@@ -34,6 +34,7 @@
         <td class="mono">{{ h.scan_date }}</td>
         <td class="col-num mono">₹{{ '%.2f'|format(h.close) }}</td>
         <td class="col-num mono gain">+{{ h.pct_above_52w_low }}%</td>
+        <td class="col-num mono">{{ h.base_days }}d</td>
         <td class="col-num mono">{{ h.last_pullback_pct }}%</td>
         <td class="col-num mono score">{{ '%.1f'|format(h.score) }}</td>
       </tr>
