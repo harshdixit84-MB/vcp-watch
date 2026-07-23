@@ -38,6 +38,7 @@ def _date_links(all_dates, current_date, prefix):
 def _with_ticker_urls(records, prefix):
     for r in records:
         r["ticker_url"] = f"{prefix}ticker/{r['ticker']}.html"
+        r["tradingview_url"] = f"https://www.tradingview.com/chart/?symbol=NSE:{r['ticker'].replace('.NS', '')}"
     return records
 
 
@@ -86,9 +87,14 @@ def build():
     tickers = screener.get_all_tickers()
     for ticker in tickers:
         history = screener.get_ticker_history(ticker).to_dict(orient="records")
+        symbol = ticker.replace(".NS", "")
+        chart_json_path = OUTPUT_DIR / "chart-data" / f"{ticker}.json"
         html = ticker_tpl.render(
             ticker=ticker, history=history,
             home_url="../index.html", css_url="../static/style.css",
+            tradingview_url=f"https://www.tradingview.com/chart/?symbol=NSE:{symbol}",
+            chart_data_url=f"../chart-data/{ticker}.json",
+            has_chart=chart_json_path.exists(),
         )
         (OUTPUT_DIR / "ticker" / f"{ticker}.html").write_text(html, encoding="utf-8")
 
