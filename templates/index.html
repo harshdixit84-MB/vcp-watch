@@ -50,7 +50,8 @@
         <th class="col-ticker">Ticker</th>
         <th class="col-num">Close</th>
         <th class="col-num">Off 52w Low</th>
-        <th class="col-num">Last Pullback</th>
+        <th class="col-num">Base (days)</th>
+        <th class="col-num">Base Range</th>
         <th class="col-flags">Signals</th>
         <th class="col-num">Score</th>
       </tr>
@@ -71,6 +72,7 @@
         </td>
         <td class="col-num mono">₹{{ '%.2f'|format(r.close) }}</td>
         <td class="col-num mono gain">+{{ r.pct_above_52w_low }}%</td>
+        <td class="col-num mono">{{ r.base_days }}d</td>
         <td class="col-num mono">{{ r.last_pullback_pct }}%</td>
         <td class="col-flags">
           {% if r.volume_contracting %}<span class="pill pill-vol">vol↓</span>{% endif %}
