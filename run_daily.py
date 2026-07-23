@@ -12,6 +12,7 @@ import screener
 import universe
 import alerts
 import build_site
+import chart_data
 
 
 def main():
@@ -26,6 +27,7 @@ def main():
     if not results.empty:
         screener.save_results(results, scan_date)
         print(f"[run_daily] {len(results)} candidate(s) saved for {scan_date}")
+        chart_data.build_all(results["Ticker"].tolist())
     else:
         print(f"[run_daily] No candidates found for {scan_date}")
 
