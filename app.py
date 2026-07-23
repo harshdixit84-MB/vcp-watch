@@ -20,10 +20,11 @@ Then optionally put Nginx in front of it for a real domain + HTTPS
 (see deployment notes at the bottom of README.md).
 """
 
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template, jsonify, send_from_directory
 import screener
 
 app = Flask(__name__)
+DOCS_DIR = screener.BASE_DIR / "docs"
 
 
 def _date_links(all_dates, current_date):
@@ -36,6 +37,7 @@ def _date_links(all_dates, current_date):
 def _with_ticker_urls(records):
     for r in records:
         r["ticker_url"] = f"/ticker/{r['ticker']}"
+        r["tradingview_url"] = f"https://www.tradingview.com/chart/?symbol=NSE:{r['ticker'].replace('.NS', '')}"
     return records
 
 
@@ -81,10 +83,20 @@ def api_latest():
 @app.route("/ticker/<ticker>")
 def ticker_history(ticker):
     history = screener.get_ticker_history(ticker)
+    symbol = ticker.replace(".NS", "")
+    chart_json_path = DOCS_DIR / "chart-data" / f"{ticker}.json"
     return render_template(
         "ticker.html", ticker=ticker, history=history.to_dict(orient="records"),
         home_url="/", css_url="/static/style.css",
+        tradingview_url=f"https://www.tradingview.com/chart/?symbol=NSE:{symbol}",
+        chart_data_url=f"/chart-data/{ticker}.json",
+        has_chart=chart_json_path.exists(),
     )
+
+
+@app.route("/chart-data/<path:filename>")
+def chart_data_file(filename):
+    return send_from_directory(DOCS_DIR / "chart-data", filename)
 
 
 if __name__ == "__main__":
