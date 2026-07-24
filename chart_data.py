@@ -2,10 +2,10 @@
 Chart Data Generator
 ======================
 For each of today's candidate stocks, saves a compact JSON snapshot of
-recent OHLC price data plus the detected consolidation zone (base high,
-base low, base start date) so the dashboard can render an actual
-candlestick chart showing exactly why the stock was flagged - not just
-the summary numbers.
+recent OHLC price data plus every detected swing high/low and the pivot
+- so the dashboard can render a candlestick chart that visually marks
+exactly which contraction pattern got the stock flagged, not just a
+summary number.
 
 Called automatically by run_daily.py right after screening, for the
 tickers that passed today. Output goes to docs/chart-data/<ticker>.json
@@ -25,25 +25,41 @@ CHART_DAYS = 150  # how many recent trading days to include in the chart
 def build_chart_json(ticker: str) -> bool:
     """
     Re-fetches recent price data for one ticker, re-detects its base
-    (same logic as the main screen), and writes a JSON snapshot.
-    Returns True on success, False if it couldn't be built.
+    using the same swing/contraction logic as the main screen, and
+    writes a JSON snapshot with every swing point marked. Returns True
+    on success, False if it couldn't be built.
     """
     try:
         df = screener.fetch_data(ticker)
-        if df.empty or len(df) < screener.MIN_BASE_DAYS:
+        if df.empty or len(df) < 220:
             return False
 
-        window = max(CHART_DAYS, screener.BASE_LOOKBACK_CAP + 20)
-        df = df.tail(window)
-
-        base = screener.find_consolidation(df)
+        base = screener.find_vcp_base(df)
         if not base:
             return False
 
-        base_start_date = df.index[-base["base_days"]].strftime("%Y-%m-%d")
-        is_near_breakout, pct_from_high = screener.check_breakout(df, base)
+        # Re-derive the same swing points find_vcp_base used internally,
+        # so the chart shows exactly what the algorithm saw.
+        lookback_df = df.tail(screener.SWING_LOOKBACK_CAP)
+        offset = len(df) - len(lookback_df)
+        swings = screener.zigzag_swings(lookback_df, pct_threshold=screener.ZIGZAG_PCT)
+        swings_global = [(idx + offset, price, typ) for idx, price, typ in swings]
+        base_start_idx = base["base_start_idx"]
+        relevant_swings = [s for s in swings_global if s[0] >= base_start_idx]
 
-        candles = df.tail(CHART_DAYS)
+        swing_markers = [
+            {
+                "time": df.index[idx].strftime("%Y-%m-%d"),
+                "price": round(float(price), 2),
+                "type": typ,
+            }
+            for idx, price, typ in relevant_swings
+        ]
+
+        is_near_breakout, pct_from_pivot = screener.check_breakout(df, base)
+
+        window = max(CHART_DAYS, screener.SWING_LOOKBACK_CAP + 20)
+        candles = df.tail(window)
         records = [
             {
                 "time": idx.strftime("%Y-%m-%d"),
@@ -58,16 +74,17 @@ def build_chart_json(ticker: str) -> bool:
         payload = {
             "ticker": ticker,
             "candles": records,
+            "swings": swing_markers,
             "base": {
-                "start_date": base_start_date,
-                "high": round(base["base_high"], 2),
-                "low": round(base["base_low"], 2),
+                "start_date": base["base_start_date"].strftime("%Y-%m-%d"),
+                "pivot": round(base["pivot_price"], 2),
                 "days": base["base_days"],
-                "range_pct": base["range_pct"],
+                "num_pullbacks": base["num_pullbacks"],
+                "pullback_pcts": base["pullback_pcts"],
             },
             "breakout": {
                 "is_near_or_at": bool(is_near_breakout),
-                "pct_from_base_high": pct_from_high,
+                "pct_from_pivot": pct_from_pivot,
             },
         }
 
@@ -89,5 +106,4 @@ def build_all(tickers) -> int:
 
 
 if __name__ == "__main__":
-    # quick manual test against a single ticker
     print(build_chart_json("RELIANCE.NS"))
