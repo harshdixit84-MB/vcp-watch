@@ -22,12 +22,14 @@
 
 <main>
   {% if has_chart %}
-  <h2 class="section-title">Chart — detected base zone</h2>
+  <h2 class="section-title">Chart — detected swing points</h2>
   <div id="chart-container" class="chart-container"></div>
   <p class="chart-legend">
-    <span class="legend-dot legend-amber"></span> Base high / low (dashed lines)
-    &nbsp;&nbsp;<span class="legend-dot legend-arrow">▲</span> Base start
+    <span class="legend-arrow">▲</span> Swing low &nbsp;&nbsp;
+    <span class="legend-arrow">▼</span> Swing high &nbsp;&nbsp;
+    <span class="legend-dot legend-amber"></span> Pivot (dashed line)
   </p>
+  <p id="pullback-readout" class="chart-legend"></p>
   <script>
     fetch("{{ chart_data_url }}")
       .then(r => r.json())
@@ -50,20 +52,24 @@
         candleSeries.setData(data.candles);
 
         candleSeries.createPriceLine({
-          price: data.base.high, color: '#D4A72C', lineWidth: 1,
-          lineStyle: LightweightCharts.LineStyle.Dashed, title: 'Base High',
+          price: data.base.pivot, color: '#D4A72C', lineWidth: 1,
+          lineStyle: LightweightCharts.LineStyle.Dashed, title: 'Pivot',
         });
-        candleSeries.createPriceLine({
-          price: data.base.low, color: '#D4A72C', lineWidth: 1,
-          lineStyle: LightweightCharts.LineStyle.Dashed, title: 'Base Low',
-        });
-        candleSeries.setMarkers([{
-          time: data.base.start_date, position: 'belowBar',
-          color: '#D4A72C', shape: 'arrowUp',
-          text: `Base start (${data.base.days}d, ${data.base.range_pct}% range)`,
-        }]);
+
+        const markers = data.swings.map(s => ({
+          time: s.time,
+          position: s.type === 'H' ? 'aboveBar' : 'belowBar',
+          color: '#D4A72C',
+          shape: s.type === 'H' ? 'arrowDown' : 'arrowUp',
+          text: s.price.toString(),
+        }));
+        candleSeries.setMarkers(markers);
 
         chart.timeScale().fitContent();
+
+        document.getElementById('pullback-readout').textContent =
+          `${data.base.num_pullbacks} pullbacks detected: ${data.base.pullback_pcts.join('% → ')}% ` +
+          `over ${data.base.days} trading days, starting ${data.base.start_date}`;
       })
       .catch(err => {
         document.getElementById('chart-container').innerHTML =
@@ -87,7 +93,8 @@
     <thead>
       <tr>
         <th>Date</th><th class="col-num">Close</th><th class="col-num">Off 52w Low</th>
-        <th class="col-num">Base (days)</th><th class="col-num">Base Range</th><th class="col-num">Score</th>
+        <th class="col-num">Pullbacks</th><th class="col-num">Base (days)</th>
+        <th class="col-num">Final Pullback</th><th class="col-flags">Signals</th><th class="col-num">Score</th>
       </tr>
     </thead>
     <tbody>
@@ -96,8 +103,15 @@
         <td class="mono">{{ h.scan_date }}</td>
         <td class="col-num mono">₹{{ '%.2f'|format(h.close) }}</td>
         <td class="col-num mono gain">+{{ h.pct_above_52w_low }}%</td>
+        <td class="col-num mono">{{ h.num_pullbacks }}</td>
         <td class="col-num mono">{{ h.base_days }}d</td>
         <td class="col-num mono">{{ h.last_pullback_pct }}%</td>
+        <td class="col-flags">
+          {% if h.volume_dryup %}<span class="pill pill-vol">vol dry-up</span>{% endif %}
+          {% if h.atr_contracting %}<span class="pill pill-vol">ATR↓</span>{% endif %}
+          {% if h.rs_near_high %}<span class="pill pill-high">RS strong</span>{% endif %}
+          {% if h.breakout_vol_expansion %}<span class="pill pill-high">breakout vol↑</span>{% endif %}
+        </td>
         <td class="col-num mono score">{{ '%.1f'|format(h.score) }}</td>
       </tr>
       {% endfor %}
