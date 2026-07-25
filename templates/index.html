@@ -50,8 +50,9 @@
         <th class="col-ticker">Ticker</th>
         <th class="col-num">Close</th>
         <th class="col-num">Off 52w Low</th>
+        <th class="col-num">Pullbacks</th>
         <th class="col-num">Base (days)</th>
-        <th class="col-num">Base Range</th>
+        <th class="col-num">Final Pullback</th>
         <th class="col-flags">Signals</th>
         <th class="col-num">Score</th>
       </tr>
@@ -73,11 +74,14 @@
         </td>
         <td class="col-num mono">₹{{ '%.2f'|format(r.close) }}</td>
         <td class="col-num mono gain">+{{ r.pct_above_52w_low }}%</td>
+        <td class="col-num mono">{{ r.num_pullbacks }}</td>
         <td class="col-num mono">{{ r.base_days }}d</td>
         <td class="col-num mono">{{ r.last_pullback_pct }}%</td>
         <td class="col-flags">
-          {% if r.volume_contracting %}<span class="pill pill-vol">vol↓</span>{% endif %}
-          {% if r.near_recent_high %}<span class="pill pill-high">near-high</span>{% endif %}
+          {% if r.volume_dryup %}<span class="pill pill-vol">vol dry-up</span>{% endif %}
+          {% if r.atr_contracting %}<span class="pill pill-vol">ATR↓</span>{% endif %}
+          {% if r.rs_near_high %}<span class="pill pill-high">RS strong</span>{% endif %}
+          {% if r.near_recent_high %}<span class="pill pill-high">near-pivot</span>{% endif %}
           {% if r.extended_avoid_entry %}<span class="pill pill-warn">extended</span>{% endif %}
         </td>
         <td class="col-num mono score">{{ '%.1f'|format(r.score) }}</td>
