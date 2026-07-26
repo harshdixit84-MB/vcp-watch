@@ -372,22 +372,34 @@ def get_pullback_sequence(swings, cutoff_idx: int = 0):
 
 def verify_contraction(pullbacks: list):
     """
-    Each pullback must be meaningfully smaller than the one before it
-    (allowing some noise via PULLBACK_CONTRACTION_TOLERANCE), and the
-    FINAL pullback (nearest the pivot) must be tight - this is what
-    actually defines "ready to break out", not just "somewhat contracting".
+    Checks that the pullback sequence is genuinely tightening overall,
+    using the trend across ALL pullbacks (linear regression slope) rather
+    than a strict pair-by-pair comparison. Real price action has noise -
+    one slightly-larger pullback in an otherwise tightening sequence
+    shouldn't invalidate a genuine base, as long as the overall
+    direction is down and the final pullback (nearest the pivot) is tight.
     Returns (verified: bool, reason: str)
     """
     if len(pullbacks) < MIN_PULLBACKS:
         return False, f"only {len(pullbacks)} pullback(s) found, need >= {MIN_PULLBACKS}"
 
     pcts = [p["pct"] for p in pullbacks]
-    for k in range(1, len(pcts)):
-        if pcts[k] > pcts[k - 1] * PULLBACK_CONTRACTION_TOLERANCE:
-            return False, f"pullback {k+1} ({pcts[k]}%) did not contract vs previous ({pcts[k-1]}%)"
+
+    x = np.arange(len(pcts))
+    slope = np.polyfit(x, pcts, 1)[0]
+    if slope >= 0:
+        return False, f"pullback sequence not trending down overall (slope {slope:.2f})"
 
     if pcts[-1] > FINAL_PULLBACK_MAX_PCT:
         return False, f"final pullback {pcts[-1]}% exceeds tight-base ceiling {FINAL_PULLBACK_MAX_PCT}%"
+
+    # The final pullback should also be clearly tighter than the average
+    # of the earlier ones - keeps "tight base right before the pivot"
+    # meaningful, not just "the trend line happens to slope down".
+    if len(pcts) >= 3:
+        earlier_avg = np.mean(pcts[:-1])
+        if pcts[-1] > earlier_avg * 0.85:
+            return False, f"final pullback {pcts[-1]}% not meaningfully tighter than earlier average {earlier_avg:.1f}%"
 
     return True, "contracting sequence confirmed"
 
