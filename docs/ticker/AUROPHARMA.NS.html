@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TITAN — VCP Watch</title>
+<title>AUROPHARMA — VCP Watch</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../static/style.css">
 <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
@@ -13,10 +13,10 @@
 <header class="topbar">
   <div class="brand">
     <a href="../index.html" class="back-link">←</a>
-    <span class="brand-name">TITAN</span>
+    <span class="brand-name">AUROPHARMA</span>
   </div>
   <div class="topbar-meta">
-    <a href="https://www.tradingview.com/chart/?symbol=NSE:TITAN" target="_blank" rel="noopener" class="tv-link">Open in TradingView ↗</a>
+    <a href="https://www.tradingview.com/chart/?symbol=NSE:AUROPHARMA" target="_blank" rel="noopener" class="tv-link">Open in TradingView ↗</a>
   </div>
 </header>
 
@@ -31,7 +31,7 @@
   </p>
   <p id="pullback-readout" class="chart-legend"></p>
   <script>
-    fetch("../chart-data/TITAN.NS.json")
+    fetch("../chart-data/AUROPHARMA.NS.json")
       .then(r => r.json())
       .then(data => {
         const container = document.getElementById('chart-container');
@@ -92,34 +92,18 @@
       
       <tr>
         <td class="mono">2026-07-26</td>
-        <td class="col-num mono">₹4677.00</td>
-        <td class="col-num mono gain">+42.1%</td>
-        <td class="col-num mono">15.0</td>
+        <td class="col-num mono">₹1532.00</td>
+        <td class="col-num mono gain">+50.8%</td>
+        <td class="col-num mono">17</td>
         <td class="col-num mono">130d</td>
-        <td class="col-num mono">4.88%</td>
+        <td class="col-num mono">4.59%</td>
         <td class="col-flags">
           
           
           
           
         </td>
-        <td class="col-num mono score">4.4</td>
-      </tr>
-      
-      <tr>
-        <td class="mono">2026-07-23</td>
-        <td class="col-num mono">₹4697.30</td>
-        <td class="col-num mono gain">+42.7%</td>
-        <td class="col-num mono">nan</td>
-        <td class="col-num mono">29d</td>
-        <td class="col-num mono">12.52%</td>
-        <td class="col-flags">
-          <span class="pill pill-vol">vol dry-up</span>
-          <span class="pill pill-vol">ATR↓</span>
-          <span class="pill pill-high">RS strong</span>
-          <span class="pill pill-high">breakout vol↑</span>
-        </td>
-        <td class="col-num mono score">6.5</td>
+        <td class="col-num mono score">4.5</td>
       </tr>
       
     </tbody>
