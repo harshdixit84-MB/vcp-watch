@@ -34,7 +34,7 @@ def build_chart_json(ticker: str) -> bool:
         if df.empty or len(df) < 220:
             return False
 
-        base = screener.find_vcp_base(df)
+        base, base_reason = screener.find_vcp_base(df)
         if not base:
             return False
 
