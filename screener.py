@@ -466,23 +466,23 @@ def find_vcp_base(df: pd.DataFrame):
     """
     Full base-detection pipeline: finds swings, measures pullbacks,
     verifies genuine contraction, and identifies the pivot (base high).
-    Returns a dict describing the base, or None if no valid VCP base
-    is currently forming.
+    Returns (base_dict, reason) - base_dict is None if no valid VCP
+    base is currently forming, and reason explains why (for diagnostics).
     """
     lookback_df = df.tail(SWING_LOOKBACK_CAP)
     offset = len(df) - len(lookback_df)
 
     swings = zigzag_swings(lookback_df, pct_threshold=ZIGZAG_PCT)
     if len(swings) < 3:
-        return None
+        return None, "too_few_swing_points"
 
     pullbacks = get_pullback_sequence(swings)
     if not pullbacks:
-        return None
+        return None, "no_pullback_legs_found"
 
-    verified, reason = verify_contraction(pullbacks)
+    verified, contraction_reason = verify_contraction(pullbacks)
     if not verified:
-        return None
+        return None, f"contraction_not_verified: {contraction_reason}"
 
     # Swing indices from zigzag_swings are local to lookback_df (the
     # truncated tail) - convert to global positions in the FULL df now,
@@ -497,11 +497,25 @@ def find_vcp_base(df: pd.DataFrame):
     base_days = len(df) - base_start_idx_global
 
     if base_days < 10:  # ~2 weeks minimum, mirrors the "2-3 week consolidation" requirement
-        return None
+        return None, "base_too_short"
 
     atr_contracting = check_atr_contraction(df, base_start_idx_global)
     vol_profile = check_volume_profile(df, pullbacks, base_start_idx_global)
     rs_near_high = check_relative_strength(df)
+
+    return {
+        "pivot_price": pivot_price,
+        "base_start_idx": base_start_idx_global,
+        "base_start_date": df.index[base_start_idx_global],
+        "base_days": base_days,
+        "num_pullbacks": len(pullbacks),
+        "pullback_pcts": [p["pct"] for p in pullbacks],
+        "final_pullback_pct": final_pb["pct"],
+        "atr_contracting": atr_contracting,
+        "volume_dryup": vol_profile["volume_dryup"],
+        "breakout_vol_expansion": vol_profile["breakout_vol_expansion"],
+        "rs_near_high": rs_near_high,
+    }, "ok"
 
     return {
         "pivot_price": pivot_price,
