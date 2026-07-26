@@ -541,26 +541,36 @@ def check_breakout(df: pd.DataFrame, base: dict):
     return is_near_or_at, round(pct_from_pivot, 2)
 
 
+from collections import Counter
+
 # --------------------------- MAIN SCREENING ---------------------------
 
-def screen_stock(ticker: str):
+def screen_stock(ticker: str, stats: Counter = None):
+    def record(reason):
+        if stats is not None:
+            stats[reason] += 1
+
     try:
         df = fetch_data(ticker)
         if df.empty or len(df) < 220:
+            record("insufficient_data")
             return None
 
         df = compute_indicators(df)
 
         stage2_ok, trend_info = check_stage2_trend(df)
         if not stage2_ok:
+            record("stage2_trend_fail")
             return None
 
-        base = find_vcp_base(df)
+        base, base_reason = find_vcp_base(df)
         if not base:
+            record(f"no_valid_base ({base_reason})")
             return None
 
         is_near_breakout, pct_from_pivot = check_breakout(df, base)
         if not is_near_breakout:
+            record("not_near_breakout")
             return None
 
         close = trend_info["close"]
@@ -573,6 +583,7 @@ def screen_stock(ticker: str):
             f"{pct_from_pivot}% from pivot"
         )
 
+        record("passed")
         return {
             "Ticker": ticker, "Close": round(close, 2),
             "PctAbove52WLow": trend_info["pct_above_low"],
@@ -594,12 +605,18 @@ def screen_stock(ticker: str):
             "Details": details,
         }
     except Exception as e:
-        print(f"  [skip] {ticker}: {e}")
+        record(f"error: {e}")
         return None
 
 
 def run_screener(tickers: list) -> pd.DataFrame:
-    results = [r for r in (screen_stock(t) for t in tickers) if r]
+    stats = Counter()
+    results = [r for r in (screen_stock(t, stats) for t in tickers) if r]
+
+    print(f"[screener] Funnel breakdown across {len(tickers)} tickers:")
+    for reason, count in stats.most_common():
+        print(f"    {reason}: {count}")
+
     if not results:
         return pd.DataFrame()
 
