@@ -21,12 +21,9 @@
 </header>
 
 <main>
-  
-  <h2 class="section-title">Chart — detected swing points</h2>
+  <h2 class="section-title">Chart — detected base</h2>
   <div id="chart-container" class="chart-container"></div>
   <p class="chart-legend">
-    <span class="legend-arrow">▲</span> Swing low &nbsp;&nbsp;
-    <span class="legend-arrow">▼</span> Swing high &nbsp;&nbsp;
     <span class="legend-dot legend-amber"></span> Pivot (dashed line)
   </p>
   <p id="pullback-readout" class="chart-legend"></p>
@@ -56,14 +53,17 @@
           lineStyle: LightweightCharts.LineStyle.Dashed, title: 'Pivot',
         });
 
-        const markers = data.swings.map(s => ({
-          time: s.time,
-          position: s.type === 'H' ? 'aboveBar' : 'belowBar',
-          color: '#D4A72C',
-          shape: s.type === 'H' ? 'arrowDown' : 'arrowUp',
-          text: s.price.toString(),
-        }));
-        candleSeries.setMarkers(markers);
+        chart.timeScale().fitContent();
+
+        document.getElementById('pullback-readout').textContent =
+          `${data.base.num_pullbacks} pullbacks detected: ${data.base.pullback_pcts.join('% → ')}% ` +
+          `over ${data.base.days} trading days, starting ${data.base.start_date}`;
+      })
+      .catch(err => {
+        document.getElementById('chart-container').innerHTML =
+          '<p class="muted">Chart data unavailable for this ticker.</p>';
+      });
+  </script>
 
         chart.timeScale().fitContent();
 
@@ -92,8 +92,8 @@
       
       <tr>
         <td class="mono">2026-07-27</td>
-        <td class="col-num mono">₹18449.00</td>
-        <td class="col-num mono gain">+58.4%</td>
+        <td class="col-num mono">₹18628.00</td>
+        <td class="col-num mono gain">+60.0%</td>
         <td class="col-num mono">28.0</td>
         <td class="col-num mono">130d</td>
         <td class="col-num mono">4.45%</td>
