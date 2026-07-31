@@ -21,13 +21,61 @@
 </header>
 
 <main>
-  
-  <h2 class="section-title">Chart</h2>
-  <p class="muted">
-    No chart snapshot saved for this ticker (snapshots are generated
-    only for tickers that appear in the most recent scan). Use the
-    "Open in TradingView" link above for the live chart instead.
+  <h2 class="section-title">Chart — detected base</h2>
+  <div id="chart-container" class="chart-container"></div>
+  <p class="chart-legend">
+    <span class="legend-dot legend-amber"></span> Pivot (dashed line)
   </p>
+  <p id="pullback-readout" class="chart-legend"></p>
+  <script>
+    fetch("../chart-data/ADANIENSOL.NS.json")
+      .then(r => r.json())
+      .then(data => {
+        const container = document.getElementById('chart-container');
+        const chart = LightweightCharts.createChart(container, {
+          height: 420,
+          layout: { background: { color: '#10151F' }, textColor: '#7C8798' },
+          grid: {
+            vertLines: { color: '#1E2530' },
+            horzLines: { color: '#1E2530' },
+          },
+          rightPriceScale: { borderColor: '#1E2530' },
+          timeScale: { borderColor: '#1E2530' },
+        });
+        const candleSeries = chart.addCandlestickSeries({
+          upColor: '#3FB950', downColor: '#F0605A', borderVisible: false,
+          wickUpColor: '#3FB950', wickDownColor: '#F0605A',
+        });
+        candleSeries.setData(data.candles);
+
+        candleSeries.createPriceLine({
+          price: data.base.pivot, color: '#D4A72C', lineWidth: 1,
+          lineStyle: LightweightCharts.LineStyle.Dashed, title: 'Pivot',
+        });
+
+        chart.timeScale().fitContent();
+
+        document.getElementById('pullback-readout').textContent =
+          `${data.base.num_pullbacks} pullbacks detected: ${data.base.pullback_pcts.join('% → ')}% ` +
+          `over ${data.base.days} trading days, starting ${data.base.start_date}`;
+      })
+      .catch(err => {
+        document.getElementById('chart-container').innerHTML =
+          '<p class="muted">Chart data unavailable for this ticker.</p>';
+      });
+  </script>
+
+        chart.timeScale().fitContent();
+
+        document.getElementById('pullback-readout').textContent =
+          `${data.base.num_pullbacks} pullbacks detected: ${data.base.pullback_pcts.join('% → ')}% ` +
+          `over ${data.base.days} trading days, starting ${data.base.start_date}`;
+      })
+      .catch(err => {
+        document.getElementById('chart-container').innerHTML =
+          '<p class="muted">Chart data unavailable for this ticker.</p>';
+      });
+  </script>
   
 
   <h2 class="section-title" style="margin-top: 32px;">Appearance history</h2>
@@ -43,17 +91,33 @@
     <tbody>
       
       <tr>
-        <td class="mono">2026-07-23</td>
-        <td class="col-num mono">₹1708.40</td>
-        <td class="col-num mono gain">+129.3%</td>
-        <td class="col-num mono">None</td>
-        <td class="col-num mono">14d</td>
-        <td class="col-num mono">13.88%</td>
+        <td class="mono">2026-07-31</td>
+        <td class="col-num mono">₹1645.40</td>
+        <td class="col-num mono gain">+120.9%</td>
+        <td class="col-num mono">37.0</td>
+        <td class="col-num mono">128d</td>
+        <td class="col-num mono">4.24%</td>
         <td class="col-flags">
           
           
           
           
+        </td>
+        <td class="col-num mono score">4.6</td>
+      </tr>
+      
+      <tr>
+        <td class="mono">2026-07-23</td>
+        <td class="col-num mono">₹1708.40</td>
+        <td class="col-num mono gain">+129.3%</td>
+        <td class="col-num mono">nan</td>
+        <td class="col-num mono">14d</td>
+        <td class="col-num mono">13.88%</td>
+        <td class="col-flags">
+          <span class="pill pill-vol">vol dry-up</span>
+          <span class="pill pill-vol">ATR↓</span>
+          <span class="pill pill-high">RS strong</span>
+          <span class="pill pill-high">breakout vol↑</span>
         </td>
         <td class="col-num mono score">4.2</td>
       </tr>
