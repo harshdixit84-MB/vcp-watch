@@ -88,6 +88,8 @@ def init_db():
             volume_dryup INTEGER,
             breakout_vol_expansion INTEGER,
             rs_near_high INTEGER,
+            has_broken_out INTEGER,
+            buy_signal INTEGER,
             UNIQUE(scan_date, ticker)
         )
     """)
@@ -97,6 +99,7 @@ def init_db():
         "base_days INTEGER", "num_pullbacks INTEGER", "pivot_price REAL",
         "atr_contracting INTEGER", "volume_dryup INTEGER",
         "breakout_vol_expansion INTEGER", "rs_near_high INTEGER",
+        "has_broken_out INTEGER", "buy_signal INTEGER",
     ]:
         try:
             conn.execute(f"ALTER TABLE scans ADD COLUMN {col_def}")
@@ -117,8 +120,8 @@ def save_results(df: pd.DataFrame, scan_date: str):
              volume_contracting, near_recent_high, extended_avoid_entry,
              sma10, sma20, sma50, sma200, score, details, base_days,
              num_pullbacks, pivot_price, atr_contracting, volume_dryup,
-             breakout_vol_expansion, rs_near_high)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+             breakout_vol_expansion, rs_near_high, has_broken_out, buy_signal)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """, (
             scan_date, row["Ticker"], row["Close"], row["PctAbove52WLow"],
             row["LastPullbackPct"], int(row["VolumeContracting"]),
@@ -128,6 +131,7 @@ def save_results(df: pd.DataFrame, scan_date: str):
             row.get("NumPullbacks"), row.get("PivotPrice"),
             int(row.get("AtrContracting", False)), int(row.get("VolumeDryup", False)),
             int(row.get("BreakoutVolExpansion", False)), int(row.get("RsNearHigh", False)),
+            int(row.get("HasBrokenOut", False)), int(row.get("BuySignal", False)),
         ))
     conn.commit()
     conn.close()
@@ -585,9 +589,27 @@ def screen_stock(ticker: str, stats: Counter = None):
             record("not_near_breakout")
             return None
 
-        close = trend_info["close"]
+close = trend_info["close"]
         extension_above_sma50 = (close - trend_info["sma50"]) / trend_info["sma50"] * 100
         extended = extension_above_sma50 > MAX_EXTENSION_ABOVE_SMA50_PCT
+
+        # Actually broken out (closed at/above pivot) vs merely approaching
+        # it - the Buy Signal only fires on a confirmed breakout, not a
+        # stock that's just gotten close.
+        has_broken_out = pct_from_pivot <= 0
+
+        # Buy Signal: the full combination that actually defines a
+        # tradeable entry, not just "showed up in the screen":
+        #   - confirmed breakout above pivot (not just near it)
+        #   - breakout volume expansion (real conviction, not a fakeout)
+        #   - relative strength vs Nifty 50 (outperforming, not drifting)
+        #   - NOT overextended (not chasing a late entry)
+        buy_signal = (
+            has_broken_out
+            and base["breakout_vol_expansion"]
+            and base["rs_near_high"]
+            and not extended
+        )
 
         details = (
             f"{base['num_pullbacks']} pullbacks {base['pullback_pcts']}, "
@@ -609,6 +631,8 @@ def screen_stock(ticker: str, stats: Counter = None):
             "BreakoutVolExpansion": base["breakout_vol_expansion"],
             "RsNearHigh": base["rs_near_high"],
             "NearRecentHigh": is_near_breakout,
+            "HasBrokenOut": has_broken_out,
+            "BuySignal": buy_signal,
             "Extended_AvoidNewEntry": extended,
             "SMA10": round(float(df["SMA10"].iloc[-1]), 2),
             "SMA20": round(float(df["SMA20"].iloc[-1]), 2),
@@ -637,7 +661,8 @@ def run_screener(tickers: list) -> pd.DataFrame:
     # (ATR contraction, RS strength, breakout volume expansion) so the
     # ranking reflects setup quality, not just pass/fail.
     out["Score"] = (
-        out["VolumeContracting"].astype(int) * 2
+        out["BuySignal"].astype(int) * 10
+        + out["VolumeContracting"].astype(int) * 2
         + out["AtrContracting"].astype(int) * 1.5
         + out["RsNearHigh"].astype(int) * 1.5
         + out["BreakoutVolExpansion"].astype(int) * 1
