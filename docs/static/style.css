@@ -152,6 +152,25 @@ main { padding: 28px; max-width: 1100px; margin: 0 auto; }
 
 .extended-row { opacity: 0.55; }
 
+.buy-signal-row {
+  background: rgba(63,185,80,0.06);
+  box-shadow: inset 3px 0 0 var(--gain);
+}
+.buy-signal-row:hover td { background: rgba(63,185,80,0.1) !important; }
+
+.buy-badge {
+  display: inline-block;
+  background: var(--gain);
+  color: var(--bg);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
 .empty-state {
   text-align: center;
   padding: 80px 20px;
