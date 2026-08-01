@@ -589,7 +589,7 @@ def screen_stock(ticker: str, stats: Counter = None):
             record("not_near_breakout")
             return None
 
-close = trend_info["close"]
+        close = trend_info["close"]
         extension_above_sma50 = (close - trend_info["sma50"]) / trend_info["sma50"] * 100
         extended = extension_above_sma50 > MAX_EXTENSION_ABOVE_SMA50_PCT
 
@@ -643,7 +643,6 @@ close = trend_info["close"]
     except Exception as e:
         record(f"error: {e}")
         return None
-
 
 def run_screener(tickers: list) -> pd.DataFrame:
     stats = Counter()
