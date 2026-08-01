@@ -28,6 +28,7 @@ USAGE
 
 import os
 import requests
+import pandas as pd
 
 BOT_TOKEN = os.environ.get("VCP_TELEGRAM_BOT_TOKEN")
 CHAT_ID = os.environ.get("VCP_TELEGRAM_CHAT_ID")
@@ -57,13 +58,20 @@ def format_candidates_message(df, scan_date: str) -> str:
     if df.empty:
         return f"*VCP Screener - {scan_date}*\nNo candidates found today."
 
-    lines = [f"*VCP Screener - {scan_date}*", f"{len(df)} candidate(s) found:\n"]
+    buy_count = int(df.get("BuySignal", pd.Series(dtype=bool)).sum()) if "BuySignal" in df.columns else 0
+    header = f"*VCP Screener - {scan_date}*"
+    if buy_count:
+        header += f"\n🟢 {buy_count} BUY SIGNAL{'S' if buy_count != 1 else ''} today"
+    lines = [header, f"{len(df)} candidate(s) found:\n"]
+
     for _, row in df.iterrows():
         flags = []
+        if row.get("BuySignal"):
+            flags.append("🟢 BUY")
         if row.get("VolumeContracting"):
             flags.append("vol-contracting")
         if row.get("NearRecentHigh"):
-            flags.append("near-high")
+            flags.append("near-pivot")
         if row.get("Extended_AvoidNewEntry"):
             flags.append("⚠extended")
         flag_str = f" ({', '.join(flags)})" if flags else ""
