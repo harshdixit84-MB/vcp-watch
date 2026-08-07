@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NAM-INDIA — VCP Watch</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../static/style.css">
+<script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <a href="../index.html" class="back-link">←</a>
+    <span class="brand-name">NAM-INDIA</span>
+  </div>
+  <div class="topbar-meta">
+    <a href="https://www.tradingview.com/chart/?symbol=NSE:NAM-INDIA" target="_blank" rel="noopener" class="tv-link">Open in TradingView ↗</a>
+  </div>
+</header>
+
+<main>
+  <h2 class="section-title">Chart — detected base</h2>
+  <div id="chart-container" class="chart-container"></div>
+  <p class="chart-legend">
+    <span class="legend-dot legend-amber"></span> Pivot (dashed line)
+  </p>
+  <p id="pullback-readout" class="chart-legend"></p>
+  <script>
+    fetch("../chart-data/NAM-INDIA.NS.json")
+      .then(r => r.json())
+      .then(data => {
+        const container = document.getElementById('chart-container');
+        const chart = LightweightCharts.createChart(container, {
+          height: 420,
+          layout: { background: { color: '#10151F' }, textColor: '#7C8798' },
+          grid: {
+            vertLines: { color: '#1E2530' },
+            horzLines: { color: '#1E2530' },
+          },
+          rightPriceScale: { borderColor: '#1E2530' },
+          timeScale: { borderColor: '#1E2530' },
+        });
+        const candleSeries = chart.addCandlestickSeries({
+          upColor: '#3FB950', downColor: '#F0605A', borderVisible: false,
+          wickUpColor: '#3FB950', wickDownColor: '#F0605A',
+        });
+        candleSeries.setData(data.candles);
+
+        candleSeries.createPriceLine({
+          price: data.base.pivot, color: '#D4A72C', lineWidth: 1,
+          lineStyle: LightweightCharts.LineStyle.Dashed, title: 'Pivot',
+        });
+
+        chart.timeScale().fitContent();
+
+        document.getElementById('pullback-readout').textContent =
+          `${data.base.num_pullbacks} pullbacks detected: ${data.base.pullback_pcts.join('% → ')}% ` +
+          `over ${data.base.days} trading days, starting ${data.base.start_date}`;
+      })
+      .catch(err => {
+        document.getElementById('chart-container').innerHTML =
+          '<p class="muted">Chart data unavailable for this ticker.</p>';
+      });
+  </script>
+
+        chart.timeScale().fitContent();
+
+        document.getElementById('pullback-readout').textContent =
+          `${data.base.num_pullbacks} pullbacks detected: ${data.base.pullback_pcts.join('% → ')}% ` +
+          `over ${data.base.days} trading days, starting ${data.base.start_date}`;
+      })
+      .catch(err => {
+        document.getElementById('chart-container').innerHTML =
+          '<p class="muted">Chart data unavailable for this ticker.</p>';
+      });
+  </script>
+  
+
+  <h2 class="section-title" style="margin-top: 32px;">Appearance history</h2>
+  
+  <table class="board">
+    <thead>
+      <tr>
+        <th>Date</th><th class="col-num">Close</th><th class="col-num">Off 52w Low</th>
+        <th class="col-num">Pullbacks</th><th class="col-num">Base (days)</th>
+        <th class="col-num">Final Pullback</th><th class="col-flags">Signals</th><th class="col-num">Score</th>
+      </tr>
+    </thead>
+    <tbody>
+      
+      <tr>
+        <td class="mono">2026-08-07</td>
+        <td class="col-num mono">₹1176.00</td>
+        <td class="col-num mono gain">+53.9%</td>
+        <td class="col-num mono">31</td>
+        <td class="col-num mono">130d</td>
+        <td class="col-num mono">4.27%</td>
+        <td class="col-flags">
+          
+          <span class="pill pill-vol">ATR↓</span>
+          
+          <span class="pill pill-high">breakout vol↑</span>
+        </td>
+        <td class="col-num mono score">7.1</td>
+      </tr>
+      
+    </tbody>
+  </table>
+  
+</main>
+
+</body>
+</html>
