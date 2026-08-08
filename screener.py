@@ -35,15 +35,15 @@ DB_PATH = BASE_DIR / "data" / "vcp.db"
 
 # --- Stage 2 trend template ---
 MIN_PCT_ABOVE_52W_LOW = 30.0     # must be well clear of the 52-week low
-NEAR_52W_HIGH_PCT = 25.0         # within this % of the 52-week high (Minervini trend template)
+NEAR_52W_HIGH_PCT = 20.0  # tightened from 25.0 - backtest showed weaker stocks (far from highs) dragging down win rate
 SMA_RISING_LOOKBACK = 20         # days back to compare SMA50/SMA200 slope
 MAX_EXTENSION_ABOVE_SMA50_PCT = 60.0  # too far above SMA50 = late/risky entry
 
 # --- Swing detection (zigzag) ---
-ZIGZAG_PCT = 4.0                 # min % reversal to register a new swing point
+ZIGZAG_PCT = 5.0  # tightened from 4.0 - backtest's 46% stop-out rate suggested noise was being picked up as structure
 MIN_PULLBACKS = 2                # need at least this many H->L legs to call it VCP
 PULLBACK_CONTRACTION_TOLERANCE = 1.15  # allow up to 15% noise; must shrink beyond this
-FINAL_PULLBACK_MAX_PCT = 12.0    # the pullback nearest the pivot must be this tight
+FINAL_PULLBACK_MAX_PCT = 8.0  # tightened from 12.0 - a 12% final pullback wasn't a tight enough coil
 SWING_LOOKBACK_CAP = 130         # don't search back more than ~6 months for the base
 
 # --- Breakout / pivot ---
@@ -515,9 +515,16 @@ def find_vcp_base(df: pd.DataFrame):
     if base_days < 10:  # ~2 weeks minimum, mirrors the "2-3 week consolidation" requirement
         return None, "base_too_short"
 
-    atr_contracting = check_atr_contraction(df, base_start_idx_global)
+atr_contracting = check_atr_contraction(df, base_start_idx_global)
     vol_profile = check_volume_profile(df, pullbacks, base_start_idx_global)
     rs_near_high = check_relative_strength(df)
+
+    # Hard requirement, not just a scoring bonus: the backtest's 46%
+    # stop-out rate suggested many "valid" bases lacked genuine
+    # institutional accumulation (real volume dry-up) before the
+    # breakout - those are more likely false setups that fail quickly.
+    if not vol_profile["volume_dryup"]:
+        return None, "no_genuine_volume_dryup"
 
     return {
         "pivot_price": pivot_price,
