@@ -518,6 +518,8 @@ def find_vcp_base(df: pd.DataFrame):
 atr_contracting = check_atr_contraction(df, base_start_idx_global)
     vol_profile = check_volume_profile(df, pullbacks, base_start_idx_global)
     rs_near_high = check_relative_strength(df)
+if not vol_profile["volume_dryup"]:
+        return None, "no_genuine_volume_dryup"
 
     # Hard requirement, not just a scoring bonus: the backtest's 46%
     # stop-out rate suggested many "valid" bases lacked genuine
